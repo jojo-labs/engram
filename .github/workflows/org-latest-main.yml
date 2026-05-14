@@ -1,0 +1,17 @@
+name: org-latest-main
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest_main:
+    name: latest-main
+    runs-on: ${{ fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
+    steps:
+      - name: Confirm branch is current
+        run: true

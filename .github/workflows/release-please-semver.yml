@@ -1,0 +1,41 @@
+name: Release Please Semver Guard
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  semver-guard:
+    runs-on: ${{ fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
+    timeout-minutes: 2
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const title = context.payload.pull_request?.title ?? ""
+            const body = context.payload.pull_request?.body ?? ""
+            const conventional = /^(build|chore|ci|deps|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?(!)?: .+/
+            const breaking = /(^|\n)BREAKING(?:-| )CHANGE:\s+\S/i
+
+            if (!conventional.test(title)) {
+              core.setFailed("PR title must use Conventional Commits, e.g. `fix(api): short summary` or `feat(api)!: short summary`.")
+              return
+            }
+
+            const hasBang = title.includes("!:")
+            const hasBreakingFooter = breaking.test(body)
+
+            if (hasBang && !hasBreakingFooter) {
+              core.setFailed("Breaking-change PR titles must include a `BREAKING CHANGE: ...` paragraph in the PR body.")
+              return
+            }
+
+            if (hasBreakingFooter && !hasBang) {
+              core.setFailed("PRs with a `BREAKING CHANGE:` paragraph must also mark the title with `!`, e.g. `feat(api)!: ...`.")
+            }
