@@ -1,9 +1,8 @@
 name: Release Please Semver Guard
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, reopened, synchronize, ready_for_review]
-  workflow_dispatch:
 
 permissions:
   pull-requests: read
@@ -19,39 +18,8 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
-            async function resolvePullRequest() {
-              if (context.payload.pull_request) return context.payload.pull_request
-
-              const branch = String(context.ref || "").replace(/^refs\/heads\//, "")
-              if (!branch) {
-                core.setFailed("workflow_dispatch semver guard needs a branch ref.")
-                return null
-              }
-
-              const { data: pulls } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: "open",
-                head: `${context.repo.owner}:${branch}`,
-                per_page: 10,
-              })
-
-              const matches = pulls.filter((pull) => pull.head?.ref === branch)
-              if (matches.length !== 1) {
-                core.setFailed(`workflow_dispatch semver guard expected exactly one open PR for branch ${branch}, found ${matches.length}.`)
-                return null
-              }
-
-              return matches[0]
-            }
-
-            const pullRequest = await resolvePullRequest()
-            if (!pullRequest) {
-              return
-            }
-
-            const title = pullRequest.title ?? ""
-            const body = pullRequest.body ?? ""
+            const title = context.payload.pull_request?.title ?? ""
+            const body = context.payload.pull_request?.body ?? ""
             const conventional = /^(build|chore|ci|deps|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?(!)?: .+/
             const breaking = /(^|\n)BREAKING(?:-| )CHANGE:\s+\S/i
 
