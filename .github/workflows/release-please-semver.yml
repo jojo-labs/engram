@@ -1,0 +1,73 @@
+name: Release Please Semver Guard
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read
+
+jobs:
+  semver-guard:
+    runs-on: ${{ fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
+    timeout-minutes: 2
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            async function resolvePullRequest() {
+              if (context.payload.pull_request) return context.payload.pull_request
+
+              const branch = String(context.ref || "").replace(/^refs\/heads\//, "")
+              if (!branch) {
+                core.setFailed("workflow_dispatch semver guard needs a branch ref.")
+                return null
+              }
+
+              const { data: pulls } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open",
+                head: `${context.repo.owner}:${branch}`,
+                per_page: 10,
+              })
+
+              const matches = pulls.filter((pull) => pull.head?.ref === branch)
+              if (matches.length !== 1) {
+                core.setFailed(`workflow_dispatch semver guard expected exactly one open PR for branch ${branch}, found ${matches.length}.`)
+                return null
+              }
+
+              return matches[0]
+            }
+
+            const pullRequest = await resolvePullRequest()
+            if (!pullRequest) {
+              return
+            }
+
+            const title = pullRequest.title ?? ""
+            const body = pullRequest.body ?? ""
+            const conventional = /^(build|chore|ci|deps|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?(!)?: .+/
+            const breaking = /(^|\n)BREAKING(?:-| )CHANGE:\s+\S/i
+
+            if (!conventional.test(title)) {
+              core.setFailed("PR title must use Conventional Commits, e.g. `fix(api): short summary` or `feat(api)!: short summary`.")
+              return
+            }
+
+            const hasBang = title.includes("!:")
+            const hasBreakingFooter = breaking.test(body)
+
+            if (hasBang && !hasBreakingFooter) {
+              core.setFailed("Breaking-change PR titles must include a `BREAKING CHANGE: ...` paragraph in the PR body.")
+              return
+            }
+
+            if (hasBreakingFooter && !hasBang) {
+              core.setFailed("PRs with a `BREAKING CHANGE:` paragraph must also mark the title with `!`, e.g. `feat(api)!: ...`.")
+            }
