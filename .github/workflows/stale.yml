@@ -8,7 +8,7 @@ on:
 jobs:
   stale:
     name: Mark and close stale items
-    runs-on: ${{ fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
+    runs-on: ${{ vars.USE_GITHUB_CI == 'true' && 'ubuntu-latest' || fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
     permissions:
       issues: write
       pull-requests: write

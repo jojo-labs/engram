@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   publish-ghcr:
-    runs-on: ${{ fromJSON(vars.JOJO_CI_RUNS_ON_JSON || '"ubuntu-latest"') }}
+    runs-on: ${{ vars.USE_GITHUB_CI == 'true' && 'ubuntu-latest' || fromJSON(vars.JOJO_CI_RUNS_ON_JSON || '"ubuntu-latest"') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

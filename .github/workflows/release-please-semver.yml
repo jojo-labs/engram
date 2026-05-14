@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   semver-guard:
-    runs-on: ${{ fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
+    runs-on: ${{ vars.USE_GITHUB_CI == 'true' && 'ubuntu-latest' || fromJSON(vars.JOJO_CONTROL_RUNS_ON_JSON || '"ubuntu-slim"') }}
     timeout-minutes: 2
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
